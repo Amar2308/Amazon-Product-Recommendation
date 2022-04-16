@@ -1,0 +1,74 @@
+## Load libraries
+import pandas as pd
+import matplotlib.pyplot as plt
+import sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import TruncatedSVD
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.neighbors import NearestNeighbors
+from sklearn.cluster import KMeans
+from sklearn.metrics import adjusted_rand_score
+%matplotlib inline
+plt.style.use("ggplot")
+
+## Import your dataset and display the first five rows.
+amazon_dt = pd.read_csv('./ratings_Electronics.csv',names=['userId', 'productId','Rating','timestamp'])
+amazon_dt.head()
+
+## Since the subset is large, take a subset of the dataset with 500000 rows.
+amazon_dt = amazon_dt.iloc[:500000,0:]
+amazon_dt.shape
+
+## Drop the fourth column since we don't need timestamp for recommendations
+amazon_dt.drop(['timestamp'], axis=1,inplace=True)
+amazon_dt.head()
+
+writer = pd.ExcelWriter('amazon_dataset.xlsx')
+
+amazon_dt.to_excel(writer,'clean_data', index=False)
+
+writer.save()
+
+ratings_on_products  = amazon_dt.groupby(by='productId')['Rating'].count().sort_values(ascending=False)
+
+fig = plt.figure(figsize=plt.figaspect(.5))
+plt.plot(ratings_on_products.values)
+plt.title('Product ratings')
+plt.xlabel('Product')
+plt.ylabel('Ratings')
+
+plt.show()
+
+amazon_popular_products = pd.DataFrame(amazon_dt.groupby('productId')['Rating'].count())
+popular_product = amazon_popular_products.sort_values('Rating', ascending=False)
+popular_product.head(30).plot(kind = "bar")
+
+amazon_popular_user = pd.DataFrame(amazon_dt.groupby('userId')['Rating'].count())
+popular_user = amazon_popular_products.sort_values('Rating', ascending=False)
+popular_user.head(30).plot(kind = "bar")
+
+vectorizer = TfidfVectorizer(stop_words='english')
+X1 = vectorizer.fit_transform(amazon_dt['productId'])
+
+trainingset, testingset = train_test_split(X1, test_size=0.3,random_state=10)
+
+def clusters(i):
+    print("Cluster %d:" % i),
+    for j in centroids[i, :10]:
+        print(' %s' % cond[j]),
+    print
+    
+k = 2
+knn_classifier_model = KMeans(n_clusters=k, init='k-means++', max_iter=100, n_init=1)
+knn_classifier_model.fit(trainingset)
+centroids = knn_classifier_model.cluster_centers_.argsort()[:, ::-1]
+cond = vectorizer.get_feature_names()
+for i in range(k):
+    clusters(i)
+    
+def recommend(product):
+    Y = vectorizer.transform([product])
+    make_prediction = knn_classifier_model.predict(Y)
+    clusters(make_prediction[0])
+    
+recommend("0132793040")
